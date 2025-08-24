@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA/RNA Sequence Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>DNA/RNA Sequence Analyzer</h1>
+            <p class="lead">Analyze DNA or RNA sequences to find Open Reading Frames and predict amino acid sequences</p>
+        </div>
+
+        <div class="sequence-card">
+            <h2>Input Sequence</h2>
+            <form id="sequenceForm">
+                <div class="mb-3">
+                    <label for="sequence" class="form-label">Enter DNA or RNA sequence:</label>
+                    <textarea class="form-control" id="sequence" rows="6" placeholder="Enter your sequence here (only A, T, G, C for DNA or A, U, G, C for RNA)"></textarea>
+                    <div class="form-text">The sequence will be automatically cleaned (removing spaces, numbers, etc.)</div>
+                </div>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    <button type="submit" class="btn btn-primary">Analyze Sequence</button>
+                    <button type="button" class="btn btn-outline-secondary" id="loadExample">Load Example</button>
+                </div>
+            </form>
+            <div class="loading-spinner mt-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Analyzing sequence...</p>
+            </div>
+            <div class="error-message mt-3" id="errorMessage"></div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div class="sequence-card">
+                <h2>Sequence Information</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Sequence Type:</strong> <span id="sequenceType"></span></p>
+                        <p><strong>Sequence Length:</strong> <span id="sequenceLength"></span> bases</p>
+                    </div>
+                </div>
+                <h3>mRNA Sequence</h3>
+                <div class="sequence-display" id="mrnaSequence"></div>
+            </div>
+#The part
+#to be presented
+#in the speech
+#is here!!!!!!!!!!!!
+            <div class="sequence-card">
+                <h2>Reading Frames</h2>
+                <ul class="nav nav-tabs" id="readingFrameTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="rf1-tab" data-bs-toggle="tab" data-bs-target="#rf1" type="button" role="tab" aria-controls="rf1" aria-selected="true">Frame 1</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="rf2-tab" data-bs-toggle="tab" data-bs-target="#rf2" type="button" role="tab" aria-controls="rf2" aria-selected="false">Frame 2</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="rf3-tab" data-bs-toggle="tab" data-bs-target="#rf3" type="button" role="tab" aria-controls="rf3" aria-selected="false">Frame 3</button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="readingFrameContent">
+                    <div class="tab-pane fade show active" id="rf1" role="tabpanel" aria-labelledby="rf1-tab">
+                        <div class="sequence-display" id="rf1Codons"></div>
+                        <h4 class="mt-4">Open Reading Frames</h4>
+                        <div id="rf1Orfs"></div>
+                        <h4 class="mt-4">Amino Acid Sequences</h4>
+                        <div id="rf1Amino"></div>
+                    </div>
+                    <div class="tab-pane fade" id="rf2" role="tabpanel" aria-labelledby="rf2-tab">
+                        <div class="sequence-display" id="rf2Codons"></div>
+                        <h4 class="mt-4">Open Reading Frames</h4>
+                        <div id="rf2Orfs"></div>
+                        <h4 class="mt-4">Amino Acid Sequences</h4>
+                        <div id="rf2Amino"></div>
+                    </div>
+                    <div class="tab-pane fade" id="rf3" role="tabpanel" aria-labelledby="rf3-tab">
+                        <div class="sequence-display" id="rf3Codons"></div>
+                        <h4 class="mt-4">Open Reading Frames</h4>
+                        <div id="rf3Orfs"></div>
+                        <h4 class="mt-4">Amino Acid Sequences</h4>
+                        <div id="rf3Amino"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sequenceForm = document.getElementById('sequenceForm');
+            const loadExampleBtn = document.getElementById('loadExample');
+            const loadingSpinner = document.querySelector('.loading-spinner');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultSection = document.getElementById('resultSection');
+
+            // Example DNA sequence
+            const exampleSequence = 'ATGAAACGCATTAGCACCACCATTACCACCACCATCACCATTACCACAGGTAACGGTGCGGGCTGA';
+
+            loadExampleBtn.addEventListener('click', function() {
+                document.getElementById('sequence').value = exampleSequence;
+            });
+
+            sequenceForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const sequence = document.getElementById('sequence').value.trim();
+                if (!sequence) {
+                    showError('Please enter a sequence');
+                    return;
+                }
+
+                // Show loading spinner and hide any previous results/errors
+                loadingSpinner.style.display = 'block';
+                errorMessage.style.display = 'none';
+                resultSection.style.display = 'none';
+
+                // Send the sequence to the server for analysis
+                const formData = new FormData();
+                formData.append('sequence', sequence);
+
+                fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingSpinner.style.display = 'none';
+                    
+                    if (data.error) {
+                        showError(data.error);
+                        return;
+                    }
+
+                    displayResults(data);
+                })
+                .catch(error => {
+                    loadingSpinner.style.display = 'none';
+                    showError('An error occurred while analyzing the sequence. Please try again.');
+                    console.error('Error:', error);
+                });
+            });
+
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+
+            function displayResults(data) {
+                // Show the results section
+                resultSection.style.display = 'block';
+
+                // Display sequence information
+                document.getElementById('sequenceType').textContent = data.sequence_type;
+                document.getElementById('sequenceLength').textContent = data.original_sequence.length;
+                document.getElementById('mrnaSequence').textContent = data.mrna_sequence;
+
+                // Display reading frames
+                for (let i = 0; i < data.reading_frames.length; i++) {
+                    const frame = data.reading_frames[i];
+                    document.getElementById(`rf${frame.frame}Codons`).textContent = frame.codons;
+                }
+
+                // Display ORFs
+                for (let i = 0; i < data.orfs.length; i++) {
+                    const frameOrfs = data.orfs[i];
+                    const orfsContainer = document.getElementById(`rf${frameOrfs.frame}Orfs`);
+                    orfsContainer.innerHTML = '';
+
+                    if (frameOrfs.orfs.length === 0) {
+                        orfsContainer.innerHTML = '<p>No Open Reading Frames found in this frame.</p>';
+                    } else {
+                        for (let j = 0; j < frameOrfs.orfs.length; j++) {
+                            const orf = frameOrfs.orfs[j];
+                            const orfElement = document.createElement('div');
+                            orfElement.className = 'orf-item';
+                            orfElement.innerHTML = `
+                                <p><strong>ORF ${j + 1}</strong> (Positions ${orf.start + 1}-${orf.end + 1}):</p>
+                                <div class="sequence-display">${orf.sequence}</div>
+                            `;
+                            orfsContainer.appendChild(orfElement);
+                        }
+                    }
+                }
+
+                // Display amino acid sequences
+                for (let i = 0; i < data.amino_acids.length; i++) {
+                    const frameAmino = data.amino_acids[i];
+                    const aminoContainer = document.getElementById(`rf${frameAmino.frame}Amino`);
+                    aminoContainer.innerHTML = '';
+
+                    if (frameAmino.sequences.length === 0) {
+                        aminoContainer.innerHTML = '<p>No amino acid sequences available for this frame.</p>';
+                    } else {
+                        for (let j = 0; j < frameAmino.sequences.length; j++) {
+                            const amino = frameAmino.sequences[j];
+                            const aminoElement = document.createElement('div');
+                            aminoElement.className = 'orf-item';
+                            aminoElement.innerHTML = `
+                                <p><strong>Amino Acid Sequence ${j + 1}</strong>:</p>
+                                <div class="amino-sequence">${amino}</div>
+                            `;
+                            aminoContainer.appendChild(aminoElement);
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
